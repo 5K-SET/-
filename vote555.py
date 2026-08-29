@@ -11,7 +11,7 @@ for grade in:
         REPRESENTATIVES.append(f"{grade}{className:02d} 班代")
 # ====================================================
 
-# 🌟【終極救星：建立全場數據廣播器】🌟
+# 🌟【建立全場數據廣播器】🌟
 @st.cache_resource
 def get_global_state():
     return {
