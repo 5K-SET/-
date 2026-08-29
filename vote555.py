@@ -1,13 +1,16 @@
 import streamlit as st
 import time
 
-# 🌟【終極大絕招：強行打通全場時空的共享變數】🌟
-# 使用 Python 內建的 hasattr 鎖在 streamlit 的全域核心上，保證不噴任何語法錯誤！
-if not hasattr(st, "GLOBAL_MEETING_STATE"):
-    st.GLOBAL_MEETING_STATE = {
+# 🌟【終極大絕招：改用最純粹的 Python 全域共享字典】🌟
+# 這次保證絕對不會再有語法錯誤
+if "GLOBAL_VOTE_DATA" not in globals():
+    globals()["GLOBAL_VOTE_DATA"] = {
         "voting_active": False,  # 全場投票狀態
         "votes": {}              # 全場記名票數
     }
+
+# 從全域環境中抓出共享資料
+global_state = globals()["GLOBAL_VOTE_DATA"]
 
 # 手動輸入內湖高中真實班級名冊
 REPRESENTATIVES = [
@@ -30,21 +33,21 @@ if is_admin:
     col1, col2 = st.columns(2)
     with col1:
         if st.button("🟢 開啟現場即時表決 (全場手機亮燈)", use_container_width=True):
-            st.st.GLOBAL_MEETING_STATE["voting_active"] = True
-            st.st.GLOBAL_MEETING_STATE["votes"] = {} # 清空上一題的票數
+            global_state["voting_active"] = True
+            global_state["votes"] = {} # 清空上一題的票數
             st.success("📢 已成功向全場發射亮燈訊號！")
             time.sleep(0.5)
             st.rerun()
             
     with col2:
         if st.button("🔴 截止投票並清空 (準備下一動議)", use_container_width=True):
-            st.st.GLOBAL_MEETING_STATE["voting_active"] = False
+            global_state["voting_active"] = False
             st.success("🛑 投票已終止！")
             time.sleep(0.5)
             st.rerun()
 
     # 顯示目前投票狀態
-    status = "📢 【表決中】請代表們開始按鍵..." if st.st.GLOBAL_MEETING_STATE["voting_active"] else "🛑 【截止】等待主席發動議"
+    status = "📢 【表決中】請代表們開始按鍵..." if global_state["voting_active"] else "🛑 【截止】等待主席發動議"
     st.subheader(status)
 
     # 顯示立法院風格的電子記名看板
@@ -54,7 +57,7 @@ if is_admin:
     cols = st.columns(6) 
     for idx, rep in enumerate(REPRESENTATIVES):
         with cols[idx % 6]:
-            voted_ballot = st.st.GLOBAL_MEETING_STATE["votes"].get(rep, "⏳ 未投")
+            voted_ballot = global_state["votes"].get(rep, "⏳ 未投")
             if voted_ballot == "贊成":
                 st.success(f"{rep}: 🟩 贊成")
             elif voted_ballot == "反對":
@@ -65,9 +68,9 @@ if is_admin:
                 st.text(f"{rep}: ⏳ 未投")
 
     # 即時計算總票數
-    total_yes = list(st.st.GLOBAL_MEETING_STATE["votes"].values()).count("贊成")
-    total_no = list(st.st.GLOBAL_MEETING_STATE["votes"].values()).count("反對")
-    total_abstain = list(st.st.GLOBAL_MEETING_STATE["votes"].values()).count("棄權")
+    total_yes = list(global_state["votes"].values()).count("贊成")
+    total_no = list(global_state["votes"].values()).count("反對")
+    total_abstain = list(global_state["votes"].values()).count("棄權")
     
     st.divider()
     st.write(f"### 🧮 目前票數統計： 贊成 {total_yes} 票 | 反對 {total_no} 票 | 棄權 {total_abstain} 票")
@@ -85,28 +88,30 @@ else:
         st.write(f"當前登入代表：**{my_identity}**")
         
         # 判斷控台有沒有啟動表決
-        if st.st.GLOBAL_MEETING_STATE["voting_active"]:
+        if global_state["voting_active"]:
             st.write("### 🚨 主席已發起表決，請按鍵：")
             
+            # 投票按鈕
             c1, c2, c3 = st.columns(3)
             with c1:
                 if st.button("🟩 贊成", use_container_width=True):
-                    st.st.GLOBAL_MEETING_STATE["votes"][my_identity] = "贊成"
+                    global_state["votes"][my_identity] = "贊成"
                     st.toast("投票成功：贊成")
             with c2:
                 if st.button("🟥 反對", use_container_width=True):
-                    st.st.GLOBAL_MEETING_STATE["votes"][my_identity] = "反對"
+                    global_state["votes"][my_identity] = "反對"
                     st.toast("投票成功：反對")
             with c3:
                 if st.button("🟨 棄權", use_container_width=True):
-                    st.st.GLOBAL_MEETING_STATE["votes"][my_identity] = "棄權"
+                    global_state["votes"][my_identity] = "棄權"
                     st.toast("投票成功：棄權")
                     
-            current_choice = st.st.GLOBAL_MEETING_STATE["votes"].get(my_identity, "尚未按鍵")
+            # 顯示自己目前的投票意向
+            current_choice = global_state["votes"].get(my_identity, "尚未按鍵")
             st.info(f"你目前的投票紀錄：【{current_choice}】（在截止前都可以重新按鈕修改）")
             
         else:
             st.warning("⏳ 目前沒有正在進行的表決。請聆聽議場討論，等待主席開啟按鈕。")
             
-    time.sleep(2)
+    time.sleep(1)
     st.rerun()
