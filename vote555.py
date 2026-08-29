@@ -1,7 +1,6 @@
 import streamlit as st
 import time
 import os
-import json
 
 # ==================== 【松山高中學生議會設定區：手動打死名冊與代碼】 ====================
 TOKEN_MAP = {
@@ -31,41 +30,13 @@ REPRESENTATIVES = list(TOKEN_MAP.values())
 STATUS_FILE = "status.txt"
 VOTE_FILE = "votes.txt"
 TITLE_FILE = "title.txt"
-HISTORY_FILE = "history_votes.json"  
-TIMER_FILE = "timer.txt"  
 
-# --- 基礎資料存取函數 ---
 def get_voting_active():
     if not os.path.exists(STATUS_FILE): return False
-    # 檢查是否因時間到而自動過期
-    if os.path.exists(TIMER_FILE):
-        try:
-            with open(TIMER_FILE, "r") as f:
-                end_time = float(f.read().strip())
-            if time.time() >= end_time:
-                set_voting_active(False)
-                return False
-        except:
-            pass
     with open(STATUS_FILE, "r") as f: return f.read().strip() == "active"
 
-def set_voting_active(active, duration_minutes=0):
+def set_voting_active(active):
     with open(STATUS_FILE, "w") as f: f.write("active" if active else "stop")
-    if active and duration_minutes > 0:
-        end_time = time.time() + (duration_minutes * 60)
-        with open(TIMER_FILE, "w") as f: f.write(str(end_time))
-    else:
-        if os.path.exists(TIMER_FILE): os.remove(TIMER_FILE)
-
-def get_remaining_time():
-    if not os.path.exists(TIMER_FILE): return 0
-    try:
-        with open(TIMER_FILE, "r") as f:
-            end_time = float(f.read().strip())
-        remaining = int(end_time - time.time())
-        return remaining if remaining > 0 else 0
-    except:
-        return 0
 
 def get_meeting_title():
     if not os.path.exists(TITLE_FILE): return "歡迎蒞臨松山高中學生議會大會"
@@ -93,62 +64,16 @@ def save_vote(rep, ballot):
 def clear_all_votes():
     if os.path.exists(VOTE_FILE): os.remove(VOTE_FILE)
 
-# --- 📜 歷史投票紀錄存取函數 ---
-def get_history():
-    if not os.path.exists(HISTORY_FILE): return []
-    try:
-        with open(HISTORY_FILE, "r", encoding="utf-8") as f: return json.load(f)
-    except:
-        return []
-
-def save_to_history(title, votes):
-    history = get_history()
-    total_yes = list(votes.values()).count("贊成")
-    total_no = list(votes.values()).count("反對")
-    total_abstain = list(votes.values()).count("棄權")
-    
-    record = {
-        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
-        "title": title,
-        "summary": f"贊成 {total_yes} | 反對 {total_no} | 棄權 {total_abstain}",
-        "details": votes
-    }
-    history.append(record)
-    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
-        json.dump(history, f, ensure_ascii=False, indent=4)
-
-def delete_history_item(index):
-    history = get_history()
-    if 0 <= index < len(history):
-        history.pop(index)
-        with open(HISTORY_FILE, "w", encoding="utf-8") as f:
-            json.dump(history, f, ensure_ascii=False, indent=4)
-
-# ==================== Streamlit 介面渲染 ====================
 st.set_page_config(layout="wide")
 
-# 讀取全局狀態
 voting_active = get_voting_active()
 current_votes = get_all_votes()
 meeting_title = get_meeting_title()
 
-# 👑 頂部大標題與當前議題（任何人一進網頁都看得到）
+# 頂部精美大標題與動態議題投放區
 st.markdown(f"<h1 style='text-align: center; color: #4A90E2;'>🏛️ 臺北市立松山高級中學學生議會</h1>", unsafe_allow_html=True)
 st.markdown(f"<h2 style='text-align: center; background-color: #F0F2F6; padding: 10px; border-radius: 5px; color: #333333;'>📌 當前議題：{meeting_title}</h2>", unsafe_allow_html=True)
 
-# ⏱️ 倒數計時器（移到最外層：沒登入的人、一般代表也全部能同步看到時間）
-if voting_active:
-    rem = get_remaining_time()
-    if rem > 0:
-        mins, secs = divmod(rem, 60)
-        st.markdown(f"<h3 style='text-align: center; color: #dc3545; background-color: #f8d7da; padding: 5px; border-radius: 5px;'>⏳ 投票倒數計時：{mins:02d} 分 {secs:02d} 秒 (時間到自動截止)</h3>", unsafe_allow_html=True)
-    else:
-        # 時間到，強制刷新更新狀態
-        if os.path.exists(TIMER_FILE):
-            os.remove(TIMER_FILE)
-            st.rerun()
-
-# 🔑 登入驗證碼輸入框
 user_token = st.text_input("🔑 請輸入你的 5 位數專屬投票驗證碼：", type="password").strip()
 
 if user_token in TOKEN_MAP:
@@ -158,42 +83,39 @@ if user_token in TOKEN_MAP:
     if my_identity == CHAIRMAN_IDENTITY:
         st.success(f"👑 歡迎主席（{CHAIRMAN_IDENTITY}）登入中央控制台！")
         
-        new_title = st.text_input("✍️ 請輸入本次表決的法案/動議標題：", value=meeting_title)
+        new_title = st.text_input("✍️ 請輸入本次表決的法案/動議標題（打完字按 Enter 同步大螢幕）：", value=meeting_title)
         if new_title != meeting_title:
             set_meeting_title(new_title)
             st.rerun()
         
-        duration = st.number_input("⏱️ 設定投票限時（分鐘，輸入 0 代表不限時）：", min_value=0, max_value=60, value=0, step=1)
-        
         col1, col2 = st.columns(2)
         with col1:
             if st.button("🟢 開啟現場即時表決 (全場手機亮燈)", use_container_width=True):
-                set_voting_active(True, duration_minutes=duration)
+                set_voting_active(True)
                 clear_all_votes()
                 st.rerun()
         with col2:
-            if st.button("🔴 截止投票並存入歷史紀錄 (準備下一動議)", use_container_width=True):
-                if voting_active and current_votes:
-                    save_to_history(meeting_title, current_votes)  
+            if st.button("🔴 截止投票並清空 (準備下一動議)", use_container_width=True):
                 set_voting_active(False)
                 st.rerun()
                 
         status = "📢 【表決中】請代表們開始按鍵..." if voting_active else "🛑 【截止】等待主席發動議"
         st.subheader(status)
         
+        # 主席兼代表表決區
         if voting_active:
             st.write(f"### 🗳️ 主席兼代表表決")
             c1, c2, c3 = st.columns(3)
             with c1:
-                if st.button("🟩 投 贊成", use_container_width=True, key="chair_yes"):
+                if st.button("🟩 投 贊成", use_container_width=True):
                     save_vote(CHAIRMAN_IDENTITY, "贊成")
                     st.rerun()
             with c2:
-                if st.button("🟥 投 反對", use_container_width=True, key="chair_no"):
+                if st.button("🟥 投 反對", use_container_width=True):
                     save_vote(CHAIRMAN_IDENTITY, "反對")
                     st.rerun()
             with c3:
-                if st.button("🟨 投 棄權", use_container_width=True, key="chair_abstain"):
+                if st.button("🟨 投 棄權", use_container_width=True):
                     save_vote(CHAIRMAN_IDENTITY, "棄權")
                     st.rerun()
 
@@ -204,13 +126,13 @@ if user_token in TOKEN_MAP:
         for idx, rep in enumerate(REPRESENTATIVES):
             with cols[idx % 5]:
                 voted_ballot = current_votes.get(rep, "未投")
-                if voted_ballot == "贊成":
+                if voted_ballot == "贊成": 
                     st.markdown(f"<div style='border: 3px solid #28a745; padding:8px; border-radius:5px; text-align:center; color:#28a745; font-weight:bold; margin-bottom:5px;'>🟩 {rep}</div>", unsafe_allow_html=True)
-                elif voted_ballot == "反對":
+                elif voted_ballot == "反對": 
                     st.markdown(f"<div style='border: 3px solid #dc3545; padding:8px; border-radius:5px; text-align:center; color:#dc3545; font-weight:bold; margin-bottom:5px;'>🟥 {rep}</div>", unsafe_allow_html=True)
-                elif voted_ballot == "棄權":
+                elif voted_ballot == "棄權": 
                     st.markdown(f"<div style='border: 3px solid #ffc107; padding:8px; border-radius:5px; text-align:center; color:#ffc107; font-weight:bold; margin-bottom:5px;'>🟨 {rep}</div>", unsafe_allow_html=True)
-                else:
+                else: 
                     st.markdown(f"<div style='border: 1px solid #CCCCCC; padding:8px; border-radius:5px; text-align:center; color:#888888; margin-bottom:5px;'>{rep}</div>", unsafe_allow_html=True)
 
         total_yes = list(current_votes.values()).count("贊成")
@@ -220,14 +142,50 @@ if user_token in TOKEN_MAP:
         st.divider()
         st.markdown(f"<h3>🧮 目前票數統計： <span style='color:#28a745;'>贊成 {total_yes}</span> 票 | <span style='color:#dc3545;'>反對 {total_no}</span> 票 | <span style='color:#ffc107;'>棄權 {total_abstain}</span> 票</h3>", unsafe_allow_html=True)
         
-        st.divider()
-        st.write("### 📜 歷史表決紀錄保留區 (僅主席可見與刪除)")
-        history_list = get_history()
-        if not history_list:
-            st.info("目前尚無歷史表決紀錄。")
+        time.sleep(2)
+        st.rerun()
+        
+    # 📱【一般代表手機投票端介面】📱
+    else:
+        st.success(f"✅ 身分驗證成功：**{my_identity}**")
+        
+        if voting_active:
+            st.write("### 🚨 主席已發起表決，請按鍵：")
+            
+            # 🌟【一體化視覺：手機按鈕也變成跟大螢幕一樣的立法院精美粗邊框風格】🌟
+            my_current = current_votes.get(my_identity, "尚未按鍵")
+            
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                # 如果選了贊成，按鈕在手機上會亮起大螢幕同款邊框！
+                if my_current == "贊成":
+                    st.markdown(f"<div style='border: 3px solid #28a745; padding:10px; border-radius:5px; text-align:center; color:#28a745; font-weight:bold;'>🟩 已選 贊成</div>", unsafe_allow_html=True)
+                else:
+                    if st.button("🟩 贊成", use_container_width=True):
+                        save_vote(my_identity, "贊成")
+                        st.rerun()
+            with c2:
+                if my_current == "反對":
+                    st.markdown(f"<div style='border: 3px solid #dc3545; padding:10px; border-radius:5px; text-align:center; color:#dc3545; font-weight:bold;'>🟥 已選 反對</div>", unsafe_allow_html=True)
+                else:
+                    if st.button("🟥 反對", use_container_width=True):
+                        save_vote(my_identity, "反對")
+                        st.rerun()
+            with c3:
+                if my_current == "棄權":
+                    st.markdown(f"<div style='border: 3px solid #ffc107; padding:10px; border-radius:5px; text-align:center; color:#ffc107; font-weight:bold;'>🟨 已選 棄權</div>", unsafe_allow_html=True)
+                else:
+                    if st.button("🟨 棄權", use_container_width=True):
+                        save_vote(my_identity, "棄權")
+                        st.rerun()
+                        
+            # 🌟【徹底移除原本在下方狂閃的藍色提示框】🌟 讓版面極致穩定乾淨！
+            
         else:
-            for i, record in enumerate(reversed(history_list)):
-                real_idx = len(history_list) - 1 - i
-                with st.expander(f"📋 【{record['timestamp']}】 {record['title']} — ({record['summary']})"):
-                    st.write("**詳細投票名冊：**")
-                    det_cols = st.columns(4)
+            st.warning("⏳ 目前沒有正在進行的表決。請聆聽議場討論，等待主席開啟按鈕。")
+            
+        time.sleep(2)
+        st.rerun()
+
+elif user_token != "":
+    st.error("❌ 找不到此投票代碼，請重新輸入或洽詢議事人員。")
