@@ -125,7 +125,7 @@ if user_token in TOKEN_MAP:
             st.info(f"主席目前投票紀錄：【{my_vote}】")
 
         st.divider()
-        st.write("### 📊 代表表決看板 (正宗立法院邊框亮燈風格)")
+        st.write("### 📊 投票表決結果看板")
         
         # 顯示全校 60 個班級的立法院記名邊框看板 (每排 5 班完美對齊)
         cols = st.columns(5)
