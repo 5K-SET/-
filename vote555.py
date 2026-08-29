@@ -2,8 +2,7 @@ import streamlit as st
 import time
 import os
 
-# ==================== 【松山高中學生議會：名冊與 5 碼代碼設定區】 ====================
-# 主席可以在這裡自由修改、新增或替換「班代」與「5位數亂碼」的對應表！
+# ==================== 【松山高中學生議會設定區】 ====================
 # 格式為 "5位數代碼": "班級名稱"
 TOKEN_MAP = {
     "SS001": "101 班代", "SS002": "102 班代", "SS003": "103 班代", "SS004": "104 班代", "SS005": "105 班代",
@@ -22,9 +21,11 @@ TOKEN_MAP = {
     "SS056": "316 班代", "SS057": "317 班代", "SS058": "318 班代", "SS059": "319 班代"
 }
 
-# 這裡由系統自動撈出全體班代清單來做立法院大看板
-REPRESENTATIVES = list(TOKEN_MAP.values())
+CHAIRMAN_IDENTITY = "203 班代"  # 👈 在這裡設定誰是主席！系統會認他的密碼來開啟控制台！
 
+# ====================================================================
+
+REPRESENTATIVES = list(TOKEN_MAP.values())
 STATUS_FILE = "status.txt"
 VOTE_FILE = "votes.txt"
 
@@ -57,63 +58,75 @@ def clear_all_votes():
 st.set_page_config(layout="wide")
 st.title("🏛️ 臺北市立松山高級中學學生議會 - 即時電子記名表決系統")
 
-query_params = st.query_params
-is_admin = query_params.get("role") == "admin"
-
 voting_active = get_voting_active()
 current_votes = get_all_votes()
 
-# ==================== 【👑 主席 / 控台大螢幕介面】 ====================
-if is_admin:
-    st.header("🎮 議事中央控制台 (大螢幕投影)")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("🟢 開啟現場即時表決 (全場手機亮燈)", use_container_width=True):
-            set_voting_active(True)
-            clear_all_votes()
-            st.rerun()
-            
-    with col2:
-        if st.button("🔴 截止投票並清空 (準備下一動議)", use_container_width=True):
-            set_voting_active(False)
-            st.rerun()
+# 🌟 全球唯一的乾淨輸入框
+user_token = st.text_input("🔑 請輸入你的 5 位數專屬投票驗證碼：", type="password").strip()
 
-    status = "📢 【表決中】請代表們開始按鍵..." if voting_active else "🛑 【截止】等待主席發動議"
-    st.subheader(status)
+if user_token in TOKEN_MAP:
+    my_identity = TOKEN_MAP[user_token]
+    
+    # 🚨【核心判定：如果輸入的密碼對應到主席身分】🚨
+    if my_identity == CHAIRMAN_IDENTITY:
+        st.success(f"👑 歡迎主席（{CHAIRMAN_IDENTITY}）登入中央控制台！")
+        
+        # 顯示大螢幕主控按鈕
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🟢 開啟現場即時表決 (全場手機亮燈)", use_container_width=True):
+                set_voting_active(True)
+                clear_all_votes()
+                st.rerun()
+        with col2:
+            if st.button("🔴 截止投票並清空 (準備下一動議)", use_container_width=True):
+                set_voting_active(False)
+                st.rerun()
+                
+        status = "📢 【表決中】請代表們開始按鍵..." if voting_active else "🛑 【截止】等待主席發動議"
+        st.subheader(status)
+        
+        # 主席同時也是代表，可以在這裡一鍵投票
+        if voting_active:
+            st.write(f"### 🗳️ 主席表決區")
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                if st.button("🟩 投 贊成", use_container_width=True):
+                    save_vote(CHAIRMAN_IDENTITY, "贊成")
+                    st.rerun()
+            with c2:
+                if st.button("🟥 投 反對", use_container_width=True):
+                    save_vote(CHAIRMAN_IDENTITY, "反對")
+                    st.rerun()
+            with c3:
+                if st.button("🟨 投 棄權", use_container_width=True):
+                    save_vote(CHAIRMAN_IDENTITY, "棄權")
+                    st.rerun()
+            my_vote = current_votes.get(CHAIRMAN_IDENTITY, "尚未按鍵")
+            st.info(f"主席（{CHAIRMAN_IDENTITY}）目前投票紀錄：【{my_vote}】")
 
-    st.divider()
-    st.write("### 📊 松山高中班代表記名投票看板 (立法院風格)")
-    
-    cols = st.columns(6) 
-    for idx, rep in enumerate(REPRESENTATIVES):
-        with cols[idx % 6]:
-            voted_ballot = current_votes.get(rep, "⏳ 未投")
-            if voted_ballot == "贊成": st.success(f"{rep}: 🟩 贊成")
-            elif voted_ballot == "反對": st.error(f"{rep}: 🟥 反對")
-            elif voted_ballot == "棄權": st.warning(f"{rep}: 🟨 棄權")
-            else: st.text(f"{rep}: ⏳ 未投")
+        st.divider()
+        st.write("### 📊 松山高中班代表記名投票看板 (立法院風格大螢幕)")
+        
+        cols = st.columns(6) 
+        for idx, rep in enumerate(REPRESENTATIVES):
+            with cols[idx % 6]:
+                voted_ballot = current_votes.get(rep, "⏳ 未投")
+                if voted_ballot == "贊成": st.success(f"{rep}: 🟩 贊成")
+                elif voted_ballot == "反對": st.error(f"{rep}: 🟥 反對")
+                elif voted_ballot == "棄權": st.warning(f"{rep}: 🟨 棄權")
+                else: st.text(f"{rep}: ⏳ 未投")
 
-    total_yes = list(current_votes.values()).count("贊成")
-    total_no = list(current_votes.values()).count("反對")
-    total_abstain = list(current_votes.values()).count("棄權")
-    
-    st.divider()
-    st.write(f"### 🧮 目前票數統計： 贊成 {total_yes} 票 | 反對 {total_no} 票 | 棄權 {total_abstain} 票")
-    
-    # 稍微延長到2秒更新一次，兼顧即時性又解決狂閃的問題！
-    time.sleep(2)
-    st.rerun()
-
-# ==================== 【📱 班代表手機投票端介面】 ====================
-else:
-    st.header("📱 班代表電子表決按鈕")
-    
-    # 🌟 防弊核心：改用 5 碼專屬代碼輸入框
-    user_token = st.text_input("🔑 請輸入你的 5 位數專屬投票驗證碼：", type="password").strip()
-    
-    if user_token in TOKEN_MAP:
-        my_identity = TOKEN_MAP[user_token]
+        total_yes = list(current_votes.values()).count("贊成")
+        total_no = list(current_votes.values()).count("反對")
+        total_abstain = list(current_votes.values()).count("棄權")
+        st.write(f"### 🧮 目前票數統計： 贊成 {total_yes} 票 | 反對 {total_no} 票 | 棄權 {total_abstain} 票")
+        
+        time.sleep(2)
+        st.rerun()
+        
+    # 📱【如果是一般班代表登入】📱
+    else:
         st.success(f"✅ 身分驗證成功：**{my_identity}**")
         
         if voting_active:
@@ -139,8 +152,8 @@ else:
         else:
             st.warning("⏳ 目前沒有正在進行的表決。請聆聽議場討論，等待主席開啟按鈕。")
             
-    elif user_token != "":
-        st.error("❌ 找不到此投票代碼，請重新輸入或洽詢議事人員。")
-        
-    time.sleep(2)
-    st.rerun()
+        time.sleep(2)
+        st.rerun()
+
+elif user_token != "":
+    st.error("❌ 找不到此投票代碼，請重新輸入或洽詢議事人員。")
