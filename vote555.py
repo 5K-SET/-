@@ -1,3 +1,4 @@
+
 import streamlit as st
 import time
 import os
@@ -71,20 +72,20 @@ voting_active = get_voting_active()
 current_votes = get_all_votes()
 meeting_title = get_meeting_title()
 
-# 頂部精美動態大標題
+# 頂部精美大標題與動態議題投放區
 st.markdown(f"<h1 style='text-align: center; color: #4A90E2;'>🏛️ 臺北市立松山高級中學學生議會</h1>", unsafe_allow_html=True)
-st.markdown(f"<h2 style='text-align: center; background-color: #F0F2F6; padding: 10px; border-radius: 5px;'>📌 當前議題：{meeting_title}</h2>", unsafe_allow_html=True)
+st.markdown(f"<h2 style='text-align: center; background-color: #F0F2F6; padding: 10px; border-radius: 5px; color: #333333;'>📌 當前議題：{meeting_title}</h2>", unsafe_allow_html=True)
 
 user_token = st.text_input("🔑 請輸入你的 5 位數專屬投票驗證碼：", type="password").strip()
 
 if user_token in TOKEN_MAP:
     my_identity = TOKEN_MAP[user_token]
     
-    # 👑【主席登入】👑
+    # 👑【主席控制台】👑
     if my_identity == CHAIRMAN_IDENTITY:
         st.success(f"👑 歡迎主席（{CHAIRMAN_IDENTITY}）登入中央控制台！")
         
-        # 主席專用即時打字輸入框
+        # 主席現場專用打字輸入框
         new_title = st.text_input("✍️ 請輸入本次表決的法案/動議標題（打完字按 Enter 同步大螢幕）：", value=meeting_title)
         if new_title != meeting_title:
             set_meeting_title(new_title)
@@ -104,7 +105,7 @@ if user_token in TOKEN_MAP:
         status = "📢 【表決中】請代表們開始按鍵..." if voting_active else "🛑 【截止】等待主席發動議"
         st.subheader(status)
         
-        # 主席兼代表表決
+        # 主席兼代表表決區
         if voting_active:
             st.write(f"### 🗳️ 主席兼代表表決")
             c1, c2, c3 = st.columns(3)
@@ -124,28 +125,31 @@ if user_token in TOKEN_MAP:
             st.info(f"主席目前投票紀錄：【{my_vote}】")
 
         st.divider()
-        st.write("### 📊 代表表決看板 (極簡亮燈風格)")
+        st.write("### 📊 代表表決看板 (正宗立法院邊框亮燈風格)")
         
-        # 顯示全校 60 個班級的極簡亮燈看板 (每排 5 班，高一到高三整齊對齊)
+        # 顯示全校 60 個班級的立法院記名邊框看板 (每排 5 班完美對齊)
         cols = st.columns(5)
         for idx, rep in enumerate(REPRESENTATIVES):
             with cols[idx % 5]:
                 voted_ballot = current_votes.get(rep, "未投")
+                
+                # 🌟【立法院核心視覺：平常為一般灰色邊框，投了票亮起粗體彩色邊框】🌟
                 if voted_ballot == "贊成": 
-                    st.markdown(f"<div style='background-color:#D4EDDA; padding:8px; border-radius:5px; text-align:center; color:#155724; font-weight:bold; margin-bottom:5px;'>🟩 {rep}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='border: 3px solid #28a745; background-color: transparent; padding:8px; border-radius:5px; text-align:center; color:#28a745; font-weight:bold; margin-bottom:5px;'>🟩 {rep}</div>", unsafe_allow_html=True)
                 elif voted_ballot == "反對": 
-                    st.markdown(f"<div style='background-color:#F8D7DA; padding:8px; border-radius:5px; text-align:center; color:#721C24; font-weight:bold; margin-bottom:5px;'>🟥 {rep}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='border: 3px solid #dc3545; background-color: transparent; padding:8px; border-radius:5px; text-align:center; color:#dc3545; font-weight:bold; margin-bottom:5px;'>🟥 {rep}</div>", unsafe_allow_html=True)
                 elif voted_ballot == "棄權": 
-                    st.markdown(f"<div style='background-color:#FFF3CD; padding:8px; border-radius:5px; text-align:center; color:#856404; font-weight:bold; margin-bottom:5px;'>🟨 {rep}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='border: 3px solid #ffc107; background-color: transparent; padding:8px; border-radius:5px; text-align:center; color:#ffc107; font-weight:bold; margin-bottom:5px;'>🟨 {rep}</div>", unsafe_allow_html=True)
                 else: 
-                    st.write(rep) # 🌟 沒投票的班級後面完全乾淨，沒有任何狀態字眼！
+                    # 沒投票的班級：維持乾淨的灰色極細邊框，後面不加任何字和符號
+                    st.markdown(f"<div style='border: 1px solid #CCCCCC; background-color: transparent; padding:8px; border-radius:5px; text-align:center; color:#888888; margin-bottom:5px;'>{rep}</div>", unsafe_allow_html=True)
 
         total_yes = list(current_votes.values()).count("贊成")
         total_no = list(current_votes.values()).count("反對")
         total_abstain = list(current_votes.values()).count("棄權")
         
         st.divider()
-        st.markdown(f"<h3>🧮 目前票數統計： <span style='color:green;'>贊成 {total_yes}</span> 票 | <span style='color:red;'>反對 {total_no}</span> 票 | <span style='color:orange;'>棄權 {total_abstain}</span> 票</h3>", unsafe_allow_html=True)
+        st.markdown(f"<h3>🧮 目前票數統計： <span style='color:#28a745;'>贊成 {total_yes}</span> 票 | <span style='color:#dc3545;'>反對 {total_no}</span> 票 | <span style='color:#ffc107;'>棄權 {total_abstain}</span> 票</h3>", unsafe_allow_html=True)
         
         time.sleep(2)
         st.rerun()
