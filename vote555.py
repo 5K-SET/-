@@ -1,10 +1,8 @@
-
 import streamlit as st
 import time
 import os
 
 # ==================== 【松山高中學生議會設定區：手動打死名冊與代碼】 ====================
-# 密碼邏輯：高一為 SS101~SS120，高二為 SS201~SS220，高三為 SS301~SS320
 TOKEN_MAP = {
     # 高一 (101~120)
     "SS101": "101 班代", "SS102": "102 班代", "SS103": "103 班代", "SS104": "104 班代", "SS105": "105 班代",
@@ -81,11 +79,10 @@ user_token = st.text_input("🔑 請輸入你的 5 位數專屬投票驗證碼�
 if user_token in TOKEN_MAP:
     my_identity = TOKEN_MAP[user_token]
     
-    # 👑【主席控制台】👑
+    # 👑【主席控制台介面】👑
     if my_identity == CHAIRMAN_IDENTITY:
         st.success(f"👑 歡迎主席（{CHAIRMAN_IDENTITY}）登入中央控制台！")
         
-        # 主席現場專用打字輸入框
         new_title = st.text_input("✍️ 請輸入本次表決的法案/動議標題（打完字按 Enter 同步大螢幕）：", value=meeting_title)
         if new_title != meeting_title:
             set_meeting_title(new_title)
@@ -121,28 +118,22 @@ if user_token in TOKEN_MAP:
                 if st.button("🟨 投 棄權", use_container_width=True):
                     save_vote(CHAIRMAN_IDENTITY, "棄權")
                     st.rerun()
-            my_vote = current_votes.get(CHAIRMAN_IDENTITY, "尚未按鍵")
-            st.info(f"主席目前投票紀錄：【{my_vote}】")
 
         st.divider()
-        st.write("### 📊 投票表決結果看板")
+        st.write("### 📊 代表表決看板 (正宗立法院邊框亮燈風格)")
         
-        # 顯示全校 60 個班級的立法院記名邊框看板 (每排 5 班完美對齊)
         cols = st.columns(5)
         for idx, rep in enumerate(REPRESENTATIVES):
             with cols[idx % 5]:
                 voted_ballot = current_votes.get(rep, "未投")
-                
-                # 🌟【立法院核心視覺：平常為一般灰色邊框，投了票亮起粗體彩色邊框】🌟
                 if voted_ballot == "贊成": 
-                    st.markdown(f"<div style='border: 3px solid #28a745; background-color: transparent; padding:8px; border-radius:5px; text-align:center; color:#28a745; font-weight:bold; margin-bottom:5px;'>🟩 {rep}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='border: 3px solid #28a745; padding:8px; border-radius:5px; text-align:center; color:#28a745; font-weight:bold; margin-bottom:5px;'>🟩 {rep}</div>", unsafe_allow_html=True)
                 elif voted_ballot == "反對": 
-                    st.markdown(f"<div style='border: 3px solid #dc3545; background-color: transparent; padding:8px; border-radius:5px; text-align:center; color:#dc3545; font-weight:bold; margin-bottom:5px;'>🟥 {rep}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='border: 3px solid #dc3545; padding:8px; border-radius:5px; text-align:center; color:#dc3545; font-weight:bold; margin-bottom:5px;'>🟥 {rep}</div>", unsafe_allow_html=True)
                 elif voted_ballot == "棄權": 
-                    st.markdown(f"<div style='border: 3px solid #ffc107; background-color: transparent; padding:8px; border-radius:5px; text-align:center; color:#ffc107; font-weight:bold; margin-bottom:5px;'>🟨 {rep}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='border: 3px solid #ffc107; padding:8px; border-radius:5px; text-align:center; color:#ffc107; font-weight:bold; margin-bottom:5px;'>🟨 {rep}</div>", unsafe_allow_html=True)
                 else: 
-                    # 沒投票的班級：維持乾淨的灰色極細邊框，後面不加任何字和符號
-                    st.markdown(f"<div style='border: 1px solid #CCCCCC; background-color: transparent; padding:8px; border-radius:5px; text-align:center; color:#888888; margin-bottom:5px;'>{rep}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='border: 1px solid #CCCCCC; padding:8px; border-radius:5px; text-align:center; color:#888888; margin-bottom:5px;'>{rep}</div>", unsafe_allow_html=True)
 
         total_yes = list(current_votes.values()).count("贊成")
         total_no = list(current_votes.values()).count("反對")
@@ -154,29 +145,41 @@ if user_token in TOKEN_MAP:
         time.sleep(2)
         st.rerun()
         
-    # 📱【一般代表登入】📱
+    # 📱【一般代表手機投票端介面】📱
     else:
         st.success(f"✅ 身分驗證成功：**{my_identity}**")
         
         if voting_active:
             st.write("### 🚨 主席已發起表決，請按鍵：")
             
+            # 🌟【一體化視覺：手機按鈕也變成跟大螢幕一樣的立法院精美粗邊框風格】🌟
+            my_current = current_votes.get(my_identity, "尚未按鍵")
+            
             c1, c2, c3 = st.columns(3)
             with c1:
-                if st.button("🟩 贊成", use_container_width=True):
-                    save_vote(my_identity, "贊成")
-                    st.toast("投票成功：贊成")
+                # 如果選了贊成，按鈕在手機上會亮起大螢幕同款邊框！
+                if my_current == "贊成":
+                    st.markdown(f"<div style='border: 3px solid #28a745; padding:10px; border-radius:5px; text-align:center; color:#28a745; font-weight:bold;'>🟩 已選 贊成</div>", unsafe_allow_html=True)
+                else:
+                    if st.button("🟩 贊成", use_container_width=True):
+                        save_vote(my_identity, "贊成")
+                        st.rerun()
             with c2:
-                if st.button("🟥 反對", use_container_width=True):
-                    save_vote(my_identity, "反對")
-                    st.toast("投票成功：反對")
+                if my_current == "反對":
+                    st.markdown(f"<div style='border: 3px solid #dc3545; padding:10px; border-radius:5px; text-align:center; color:#dc3545; font-weight:bold;'>🟥 已選 反對</div>", unsafe_allow_html=True)
+                else:
+                    if st.button("🟥 反對", use_container_width=True):
+                        save_vote(my_identity, "反對")
+                        st.rerun()
             with c3:
-                if st.button("🟨 棄權", use_container_width=True):
-                    save_vote(my_identity, "棄權")
-                    st.toast("投票成功：棄權")
-                    
-            my_current = current_votes.get(my_identity, "尚未按鍵")
-            st.info(f"你目前的投票紀錄：【{my_current}】（在截止前都可以重新按鈕修改）")
+                if my_current == "棄權":
+                    st.markdown(f"<div style='border: 3px solid #ffc107; padding:10px; border-radius:5px; text-align:center; color:#ffc107; font-weight:bold;'>🟨 已選 棄權</div>", unsafe_allow_html=True)
+                else:
+                    if st.button("🟨 棄權", use_container_width=True):
+                        save_vote(my_identity, "棄權")
+                        st.rerun()
+                        
+            # 🌟【徹底移除原本在下方狂閃的藍色提示框】🌟 讓版面極致穩定乾淨！
             
         else:
             st.warning("⏳ 目前沒有正在進行的表決。請聆聽議場討論，等待主席開啟按鈕。")
@@ -186,3 +189,4 @@ if user_token in TOKEN_MAP:
 
 elif user_token != "":
     st.error("❌ 找不到此投票代碼，請重新輸入或洽詢議事人員。")
+
