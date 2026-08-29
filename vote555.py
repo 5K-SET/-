@@ -1,17 +1,17 @@
 import streamlit as st
 import time
 
-# 1. 初始化議場狀態與班代名冊（你可以自己修改這份名單）
+# 1. 初始化議場狀態與班代名冊
 if 'voting_active' not in st.session_state:
     st.session_state.voting_active = False # 預設表決關閉
 if 'votes' not in st.session_state:
     st.session_state.votes = {} # 儲存開票結果
 
-# 這裡填入當天有出席的班代清冊
+# 🌟 手動輸入內湖高中真實班級名冊（保證絕不噴語法錯誤！）
 REPRESENTATIVES = [
-    "101 班代", "102 班代", "103 班代", "104 班代", "105 班代",
-    "201 班代", "202 班代", "203 班代", "204 班代", "205 班代",
-    "301 班代", "302 班代", "303 班代", "304 班代", "305 班代"
+    "101 班代", "102 班代", "103 班代", "104 班代", "105 班代", "106 班代", "107 班代", "108 班代", "109 班代", "110 班代", "111 班代", "112 班代", "113 班代", "114 班代", "115 班代", "116 班代", "117 班代", "118 班代", "119 班代",
+    "201 班代", "202 班代", "203 班代", "204 班代", "205 班代", "206 班代", "207 班代", "208 班代", "209 班代", "210 班代", "211 班代", "212 班代", "213 班代", "214 班代", "215 班代", "216 班代", "217 班代", "218 班代", "219 班代",
+    "301 班代", "302 班代", "303 班代", "304 班代", "305 班代", "306 班代", "307 班代", "308 班代", "309 班代", "310 班代", "311 班代", "312 班代", "313 班代", "314 班代", "315 班代", "316 班代", "317 班代", "318 班代", "319 班代"
 ]
 
 st.set_page_config(layout="wide")
@@ -22,7 +22,7 @@ st.title("🏛️ 內湖高中學生代表大會 - 即時電子記名表決系�
 query_params = st.query_params
 is_admin = query_params.get("role") == "admin"
 
-# ==================== 【主席 / 控台大螢幕介面】 ====================
+# ==================== 【👑 主席 / 控台大螢幕介面】 ====================
 if is_admin:
     st.header("🎮 議事中央控制台 (大螢幕投影)")
     
@@ -39,31 +39,31 @@ if is_admin:
             st.rerun()
 
     # 顯示目前投票狀態
-    status = "📢 【表決中】請代表們開始按鍵..." if st.session_state.voting_active else "🛑 【截止】等待主席發起動議"
+    status = "📢 【表決中】請代表們開始按鍵..." if st.session_state.voting_active else "🛑 【截止】等待主席發動議"
     st.subheader(status)
 
     # 顯示立法院風格的電子記名看板
     st.divider()
-    st.write("### 📊 班代表記名投票看板")
+    st.write("### 📊 內中班代表記名投票看板")
     
     # 用表格把所有人排出來
-    cols = st.columns(5) # 一排顯示5個人
+    cols = st.columns(6) # 修改為一排顯示6個班級，更符合內中班級數
     for idx, rep in enumerate(REPRESENTATIVES):
-        with cols[idx % 5]:
-            voted_ballot = st.session_state.votes.get(rep, "⏳ 未投票")
-            if voted_ballot == "赞成":
+        with cols[idx % 6]:
+            voted_ballot = st.session_state.votes.get(rep, "⏳ 未投")
+            if voted_ballot == "贊成":
                 st.success(f"{rep}: 🟩 贊成")
-            elif voted_ballot == "反对":
+            elif voted_ballot == "反對":
                 st.error(f"{rep}: 🟥 反對")
-            elif voted_ballot == "弃权":
+            elif voted_ballot == "棄權":
                 st.warning(f"{rep}: 🟨 棄權")
             else:
-                st.info(f"{rep}: ⏳ 未投票")
+                st.text(f"{rep}: ⏳ 未投")
 
     # 即時計算總票數
-    total_yes = list(st.session_state.votes.values()).count("赞成")
-    total_no = list(st.session_state.votes.values()).count("反对")
-    total_abstain = list(st.session_state.votes.values()).count("弃权")
+    total_yes = list(st.session_state.votes.values()).count("贊成")
+    total_no = list(st.session_state.votes.values()).count("反對")
+    total_abstain = list(st.session_state.votes.values()).count("棄權")
     
     st.divider()
     st.write(f"### 🧮 目前票數統計： 贊成 {total_yes} 票 | 反對 {total_no} 票 | 棄權 {total_abstain} 票")
@@ -72,15 +72,15 @@ if is_admin:
     time.sleep(1)
     st.rerun()
 
-# ==================== 【班代表手機投票介面】 ====================
+# ==================== 【📱 班代表手機投票端介面】 ====================
 else:
     st.header("📱 班代表電子表決按鈕")
     
-    # 讓代表選自己的身份（防止冒用，現場點名核對）
-    my_identity = st.selectbox("請選擇你的班級身份：", ["--- 請選擇 ---"] + REPRESENTATIVES)
+    # 讓代表選自己的身份
+    my_identity = st.selectbox("請選擇你的班級身份：", ["--- 請選擇你的班級 ---"] + REPRESENTATIVES)
     
-    if my_identity != "--- 請選擇 ---":
-        st.write(f"當前登入：**{my_identity}**")
+    if my_identity != "--- 請選擇你的班級 ---":
+        st.write(f"當前登入代表：**{my_identity}**")
         
         # 判斷控台有沒有啟動表決
         if st.session_state.voting_active:
@@ -90,15 +90,15 @@ else:
             c1, c2, c3 = st.columns(3)
             with c1:
                 if st.button("🟩 贊成", use_container_width=True):
-                    st.session_state.votes[my_identity] = "赞成"
+                    st.session_state.votes[my_identity] = "贊成"
                     st.toast("投票成功：贊成")
             with c2:
                 if st.button("🟥 反對", use_container_width=True):
-                    st.session_state.votes[my_identity] = "反对"
+                    st.session_state.votes[my_identity] = "反對"
                     st.toast("投票成功：反對")
             with c3:
                 if st.button("🟨 棄權", use_container_width=True):
-                    st.session_state.votes[my_identity] = "弃权"
+                    st.session_state.votes[my_identity] = "棄權"
                     st.toast("投票成功：棄權")
                     
             # 顯示自己目前的投票意向
