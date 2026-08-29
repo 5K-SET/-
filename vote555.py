@@ -71,8 +71,7 @@ current_votes = get_all_votes()
 meeting_title = get_meeting_title()
 
 # 頂部精美大標題與動態議題投放區
-st.markdown(f"<h1 style='text-align: center; color: #4A90E2;'>🏛️ 臺北市立松山高級中學學生議會
-電子表決系統</h1>", unsafe_allow_html=True)
+st.markdown(f"<h1 style='text-align: center; color: #4A90E2;'>🏛️ 臺北市立松山高級中學學生議會電子表決系統</h1>", unsafe_allow_html=True)
 st.markdown(f"<h2 style='text-align: center; background-color: #F0F2F6; padding: 10px; border-radius: 5px; color: #333333;'>📌 當前議題：{meeting_title}</h2>", unsafe_allow_html=True)
 
 user_token = st.text_input("🔑 請輸入你的 5 位數專屬投票驗證碼：", type="password").strip()
