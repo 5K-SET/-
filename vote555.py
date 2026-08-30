@@ -149,7 +149,7 @@ if user_token in TOKEN_MAP:
         
         # 主席兼代表表決區
         if voting_active:
-            st.write(f"### 🗳️ 主席表決區")
+            st.write(f"### 🗳️ 主席兼代表表決")
             my_current_vote = current_votes.get(CHAIRMAN_IDENTITY, "未投")
             st.info(f"您目前的投票狀態：**{my_current_vote}**")
             
@@ -228,4 +228,4 @@ if user_token in TOKEN_MAP:
             st.info("🛑 目前未開放表決，或主席已截止本次投票。請靜候主席發起下一案。")
 
 elif user_token != "":
-    st.error("❌ 驗證碼錯誤，請重新輸入！")
+    st.error("❌ 驗證碼錯誤，請重新輸入”）
