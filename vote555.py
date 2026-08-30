@@ -228,8 +228,4 @@ if user_token in TOKEN_MAP:
             st.info("🛑 目前未開放表決，或主席已截止本次投票。請靜候主席發起下一案。")
 
 elif user_token != "":
-    st.error("❌ 驗證碼錯誤，請重新輸入”）
-        st.rerun()
-
-elif user_token != "":
-    st.error("❌ 找不到此投票代碼，請重新輸入或洽詢議事人員。")
+    st.error("❌ 驗證碼錯誤，請重新輸入！")
