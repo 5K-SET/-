@@ -2,6 +2,13 @@ import streamlit as st
 import time
 import os
 
+# 💡 自動安裝或引入自動重新整理套件（確保跳秒正常運作）
+try:
+    from streamlit_autorefresh import st_autorefresh
+except ImportError:
+    os.system("pip install streamlit-autorefresh")
+    from streamlit_autorefresh import st_autorefresh
+
 # ==================== 【松山高中學生議會設定區：手動打死名冊與代碼】 ====================
 TOKEN_MAP = {
     # 高一 (101~120)
@@ -32,7 +39,7 @@ VOTE_FILE = "votes.txt"
 TITLE_FILE = "title.txt"
 
 def get_voting_status():
-    """讀取當前投票狀態與截止時間戳"""
+    """讀取投票狀態與截止時間"""
     if not os.path.exists(STATUS_FILE): 
         return "stop", 0.0
     with open(STATUS_FILE, "r") as f: 
@@ -40,15 +47,15 @@ def get_voting_status():
         status = content[0]
         end_time = float(content[1]) if len(content) > 1 else 0.0
         
-        # 【重要安全機制】如果在讀取時發現時間已經到了，自動在後台改成停止
+        # 如果發現時間已經到了，自動修正檔案狀態
         if status == "active" and time.time() > end_time:
-            set_voting_status("stop", 0.0)
+            with open(STATUS_FILE, "w") as fw:
+                fw.write("stop,0.0")
             return "stop", 0.0
             
         return status, end_time
 
 def set_voting_status(status, end_time=0.0):
-    """寫入當前投票狀態與截止時間戳"""
     with open(STATUS_FILE, "w") as f: 
         f.write(f"{status},{end_time}")
 
@@ -78,33 +85,34 @@ def save_vote(rep, ballot):
 def clear_all_votes():
     if os.path.exists(VOTE_FILE): os.remove(VOTE_FILE)
 
-# 設定頁面
+# 初始化設定
 st.set_page_config(layout="wide", page_title="松山高中學生議會表決系統")
 
-# 每 1 秒自動刷新畫面（確保倒數計時數字即時更新）
-st.fragment(run_every=1.0)(lambda: None)()
+# ⚡ 強制全網頁每 1 秒鐘從後台核心刷新一次（解決計清器定在原地不動的問題）
+st_autorefresh(interval=1000, key="vote_counter_refresh")
 
-# 獲取最新狀態
 voting_status, voting_end_time = get_voting_status()
 voting_active = (voting_status == "active")
 current_votes = get_all_votes()
 meeting_title = get_meeting_title()
 
-# 計算剩餘秒數
+# 嚴格計算時間，時間到就鎖定
 remaining_seconds = 0
 if voting_active:
     remaining_seconds = max(0, int(voting_end_time - time.time()))
-    if remaining_seconds == 0:
-        voting_active = False  # 畫面上同步更新為截止
+    if remaining_seconds <= 0:
+        voting_active = False
 
-# 頂部精美大標題與動態議題投放區
+# 頂部大標題
 st.markdown(f"<h1 style='text-align: center; color: #4A90E2;'>🏛️ 臺北市立松山高級中學學生議會電子表決系統</h1>", unsafe_allow_html=True)
 st.markdown(f"<h2 style='text-align: center; background-color: #F0F2F6; padding: 10px; border-radius: 5px; color: #333333;'>📌 當前議題：{meeting_title}</h2>", unsafe_allow_html=True)
 
-# 顯示全場醒目的倒數計時器
+# 顯示同步跳秒倒數計時器
 if voting_active:
     mins, secs = divmod(remaining_seconds, 60)
-    st.markdown(f"<h2 style='text-align: center; color: #dc3545; background-color: #ffeeba; padding: 10px; border-radius: 5px;'>⏳ 投票剩餘時間：{mins} 分 {secs} 秒</h2>", unsafe_allow_html=True)
+    st.markdown(f"<h2 style='text-align: center; color: #dc3545; background-color: #ffeeba; padding: 10px; border-radius: 5px; font-weight: bold;'>⏳ 投票剩餘時間：{mins:02d} 分 {secs:02d} 秒</h2>", unsafe_allow_html=True)
+else:
+    st.markdown(f"<h2 style='text-align: center; color: #6c757d; background-color: #e2e3e5; padding: 10px; border-radius: 5px;'>🛑 投票目前處於截止或未開放狀態</h2>", unsafe_allow_html=True)
 
 user_token = st.text_input("🔑 請輸入你的 5 位數專屬投票驗證碼：", type="password").strip()
 
@@ -120,7 +128,6 @@ if user_token in TOKEN_MAP:
             set_meeting_title(new_title)
             st.rerun()
             
-        # ⏳ 主席設定倒數時間區（只有在未投票狀態下可以設定）
         st.write("⏱️ **設定本次表決限時：**")
         t_col1, t_col2 = st.columns(2)
         with t_col1:
@@ -155,31 +162,34 @@ if user_token in TOKEN_MAP:
             
             c1, c2, c3 = st.columns(3)
             with c1:
-                if st.button("🟩 投 贊成", key="chair_yes", use_container_width=True):
+                if st.button("🟩 投 贊成", key="chair_vote_yes", use_container_width=True):
                     save_vote(CHAIRMAN_IDENTITY, "贊成")
                     st.rerun()
             with c2:
-                if st.button("🟥 投 反對", key="chair_no", use_container_width=True):
+                if st.button("🟥 投 反對", key="chair_vote_no", use_container_width=True):
                     save_vote(CHAIRMAN_IDENTITY, "反對")
                     st.rerun()
             with c3:
-                if st.button("🟨 投 棄權", key="chair_abs", use_container_width=True):
+                if st.button("🟨 投 棄權", key="chair_vote_abs", use_container_width=True):
                     save_vote(CHAIRMAN_IDENTITY, "棄權")
                     st.rerun()
 
         st.divider()
-        st.write("### 📊 代表表決看板 (畫面每 1 秒自動更新)")
+        st.write("### 📊 代表表決看板 (後台同步即時亮燈)")
         
         cols = st.columns(5)
         for idx, rep in enumerate(REPRESENTATIVES):
             with cols[idx % 5]:
+                # 取得該代表（含主席自己的 203 班代）投了什麼
                 voted_ballot = current_votes.get(rep, "未投")
+                
+                # 根據投票結果渲染有顏色的實心邊框與字體
                 if voted_ballot == "贊成": 
-                    st.markdown(f"<div style='border: 3px solid #28a745; padding:8px; border-radius:5px; text-align:center; color:#28a745; font-weight:bold; margin-bottom:5px;'>🟩 {rep}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='border: 3px solid #28a745; padding:8px; border-radius:5px; text-align:center; color:#28a745; font-weight:bold; margin-bottom:5px; background-color:#e8f5e9;'>🟩 {rep}</div>", unsafe_allow_html=True)
                 elif voted_ballot == "反對": 
-                    st.markdown(f"<div style='border: 3px solid #dc3545; padding:8px; border-radius:5px; text-align:center; color:#dc3545; font-weight:bold; margin-bottom:5px;'>🟥 {rep}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='border: 3px solid #dc3545; padding:8px; border-radius:5px; text-align:center; color:#dc3545; font-weight:bold; margin-bottom:5px; background-color:#fce8e6;'>🟥 {rep}</div>", unsafe_allow_html=True)
                 elif voted_ballot == "棄權": 
-                    st.markdown(f"<div style='border: 3px solid #ffc107; padding:8px; border-radius:5px; text-align:center; color:#ffc107; font-weight:bold; margin-bottom:5px;'>🟨 {rep}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='border: 3px solid #ffc107; padding:8px; border-radius:5px; text-align:center; color:#b78103; font-weight:bold; margin-bottom:5px; background-color:#fffde7;'>🟨 {rep}</div>", unsafe_allow_html=True)
                 else: 
                     st.markdown(f"<div style='border: 1px solid #CCCCCC; padding:8px; border-radius:5px; text-align:center; color:#888888; margin-bottom:5px;'>{rep}</div>", unsafe_allow_html=True)
 
@@ -193,7 +203,7 @@ if user_token in TOKEN_MAP:
             f"<h3>🧮 目前票數統計： "
             f"<span style='color:#28a745;'>贊成 {total_yes}</span> 票 | "
             f"<span style='color:#dc3545;'>反對 {total_no}</span> 票 | "
-            f"<span style='color:#ffc107;'>棄權 {total_abstain}</span> 票 "
+            f"<span style='color:#b78103;'>棄權 {total_abstain}</span> 票 "
             f"（總投票數：{total_voted} / {len(REPRESENTATIVES)}）</h3>", 
             unsafe_allow_html=True
         )
@@ -213,19 +223,7 @@ if user_token in TOKEN_MAP:
                 
             c1, c2, c3 = st.columns(3)
             with c1:
-                if st.button("🟩 贊成 (Approve)", key="rep_yes", use_container_width=True):
+                if st.button("🟩 贊成 (Approve)", key="rep_vote_yes", use_container_width=True):
                     save_vote(my_identity, "贊成")
                     st.rerun()
             with c2:
-                if st.button("🟥 反對 (Reject)", key="rep_no", use_container_width=True):
-                    save_vote(my_identity, "反對")
-                    st.rerun()
-            with c3:
-                if st.button("🟨 棄權 (Abstain)", key="rep_abs", use_container_width=True):
-                    save_vote(my_identity, "棄權")
-                    st.rerun()
-        else:
-            st.info("🛑 目前未開放表決，或主席已截止本次投票。請靜候主席發起下一案。")
-
-elif user_token != "":
-    st.error("❌ 驗證碼錯誤，請重新輸入！")
